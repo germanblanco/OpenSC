@@ -31,6 +31,8 @@
 #include "user-interface.h"
 #endif
 
+#define DNIE_30_version 0x04
+
 /**
   * OpenDNIe private data declaration
   *
@@ -53,6 +55,8 @@
 #define GET_DNIE_PRIV_DATA(card) ((dnie_private_data_t *) ((card)->drv_data))
 #define GET_DNIE_UI_CTX(card) (((dnie_private_data_t *) ((card)->drv_data))->ui_ctx)
 
+cwa_provider_t *dnie_get_cwa_provider(sc_card_t * card);
+cwa_provider_t *dnie_get_cwa_provider_pin_channel(sc_card_t * card);
 int dnie_transmit_apdu(sc_card_t * card, sc_apdu_t * apdu);
 
 #endif
