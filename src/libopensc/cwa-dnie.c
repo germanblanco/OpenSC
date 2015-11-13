@@ -1,10 +1,10 @@
 /**
  * cwa-dnie.c: DNIe data provider for CWA SM handling.
- * 
+ *
  * Copyright (C) 2010 Juan Antonio Martinez <jonsito@terra.es>
  *
  * This work is derived from many sources at OpenSC Project site,
- * (see references) and the information made public by Spanish 
+ * (see references) and the information made public by Spanish
  * Direccion General de la Policia y de la Guardia Civil
  *
  * This library is free software; you can redistribute it and/or
@@ -135,7 +135,7 @@ static u8 C_CV_CA_CS_AUT_cert[] = {
 	0x52, 0x44, 0x49, 0x60, 0x00, 0x06
 };
 
-/** 
+/**
  * Terminal (IFD) certificate in CVC format (PK.IFD.AUT)
  */
 static u8 C_CV_IFDUser_AUT_cert[] = {
@@ -166,13 +166,13 @@ static u8 root_ca_keyref[] = { 0x02, 0x0f };
 
 
 /**
- * ICC card private key reference 
+ * ICC card private key reference
  */
 static u8 icc_priv_keyref[] = { 0x02, 0x1f };
 
 /**
  * Intermediate CA card key reference
- */ 
+ */
 static u8 cvc_intca_keyref[] =
     { 0x65, 0x73, 0x53, 0x44, 0x49, 0x60, 0x00, 0x06 };
 
@@ -192,6 +192,61 @@ static u8 sn_ifd[] = { 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
  * This buffer is to be filled at runtime
  */
 static u8 sn_icc[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+/****************************/
+/* Pin channel for DNIe 3.0 */
+/****************************/
+
+static u8 pin_c_CV_IFD_AUT[] = {
+        0x7f,0x21,0x81,0xcd,0x5f,0x37,0x81,0x80,0x69,0xc4,0xe4,0x94,
+        0xf0,0x08,0xe2,0x42,0x14,0xb1,0xc1,0x31,0xb6,0x1f,0xce,0x9c,
+        0x15,0xfa,0x3c,0xb0,0x61,0xdd,0x6f,0x02,0xd8,0xa2,0xcd,0x30,
+        0xd7,0x2f,0xb6,0xdf,0x89,0x9a,0xf1,0x5b,0x71,0x78,0x21,0xbf,
+        0xb1,0xaf,0x7d,0x75,0x85,0x01,0x6d,0x8c,0x36,0xaf,0x4a,0xc2,
+        0xa0,0xb0,0xc5,0x2a,0xd6,0x5b,0x69,0x25,0x67,0x31,0xc3,0x4d,
+        0x59,0x02,0x0e,0x87,0xab,0x73,0xa2,0x30,0xfa,0x69,0xee,0x82,
+        0xb3,0x3a,0x31,0xdf,0x04,0x0c,0xe9,0x0f,0x0a,0xfc,0x3a,0x11,
+        0x1d,0x35,0xda,0x95,0x66,0xa8,0xcd,0xab,0xea,0x0e,0x3f,0x75,
+        0x94,0xc4,0x40,0xd3,0x74,0x50,0x7a,0x94,0x35,0x57,0x59,0xb3,
+        0x9e,0xc5,0xe5,0xfc,0xb8,0x03,0x8d,0x79,0x3d,0x5f,0x9b,0xa8,
+        0xb5,0xb1,0x0b,0x70,0x5f,0x38,0x3c,0x4c,0x86,0x91,0xc7,0xbe,
+        0x2f,0xd8,0xc1,0x23,0x66,0x0e,0x98,0x65,0xe1,0x4f,0x19,0xdf,
+        0xfb,0xb7,0xff,0x38,0x08,0xc9,0xf2,0x04,0xe7,0x97,0xd0,0x6d,
+        0xd8,0x33,0x3a,0xc5,0x83,0x86,0xee,0x4e,0xb6,0x1e,0x20,0xec,
+        0xa7,0xef,0x38,0xd5,0xb0,0x5e,0xb1,0x15,0x96,0x6a,0x5a,0x89,
+        0xad,0x58,0xa5,0x00,0x01,0x00,0x01,0x42,0x08,0x65,0x73,0x53,
+        0x44,0x49,0x60,0x00,0x06 };
+
+static u8 pin_sn_IFD[] = { 0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x01 };
+
+static u8 pin_pk_IFD_AUT_keyRef[] = {
+        /*0x83,0x0C,*/ 0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x01 };
+
+static u8 pin_sk_FD_AUT_n[] = { //ifd_modulus
+        0xF4,0x27,0x97,0x8D,0xA1,0x59,0xBA,0x02,0x79,0x30,0x8A,0x6C,
+        0x6A,0x89,0x50,0x5A,0xDA,0x5A,0x67,0xC3,0xDA,0x26,0x79,0xEA,0xF4,0xA1,0xB0,0x11,0x9E,0xDD,0x4D,0xF4,0x6E,0x78,0x04,0x24,
+        0x71,0xA9,0xD1,0x30,0x1D,0x3F,0xB2,0x8F,0x38,0xC5,0x7D,0x08,
+        0x89,0xF7,0x31,0xDB,0x8E,0xDD,0xBC,0x13,0x67,0xC1,0x34,0xE1,
+        0xE9,0x47,0x78,0x6B,0x8E,0xC8,0xE4,0xB9,0xCA,0x6A,0xA7,0xC2,
+        0x4C,0x86,0x91,0xC7,0xBE,0x2F,0xD8,0xC1,0x23,0x66,0x0E,0x98,
+        0x65,0xE1,0x4F,0x19,0xDF,0xFB,0xB7,0xFF,0x38,0x08,0xC9,0xF2,
+        0x04,0xE7,0x97,0xD0,0x6D,0xD8,0x33,0x3A,0xC5,0x83,0x86,0xEE,
+        0x4E,0xB6,0x1E,0x20,0xEC,0xA7,0xEF,0x38,0xD5,0xB0,0x5E,0xB1,
+        0x15,0x96,0x6A,0x5A,0x89,0xAD,0x58,0xA5 };
+
+static u8 pin_sk_IFD_AUT_d[] = { // ¿ifd_private_exponent?
+        0xD2,0x7A,0x03,0x23,0x7C,0x72,0x2E,0x71,0x8D,0x69,0xF4,0x1A,
+        0xEC,0x68,0xBD,0x95,0xE4,0xE0,0xC4,0xCD,0x49,0x15,0x9C,0x4A,
+        0x99,0x63,0x7D,0xB6,0x62,0xFE,0xA3,0x02,0x51,0xED,0x32,0x9C,
+        0xFC,0x43,0x89,0xEB,0x71,0x7B,0x85,0x02,0x04,0xCD,0xF3,0x30,
+        0xD6,0x46,0xFC,0x7B,0x2B,0x19,0x29,0xD6,0x8C,0xBE,0x39,0x49,
+        0x7B,0x62,0x3A,0x82,0xC7,0x64,0x1A,0xC3,0x48,0x79,0x57,0x3D,
+        0xEA,0x0D,0xAB,0xC7,0xCA,0x30,0x9A,0xE4,0xB3,0xED,0xDA,0xFA,
+        0xEE,0x55,0xD5,0x42,0xF7,0x80,0x23,0x03,0x51,0xE7,0x5E,0x7F,
+        0x32,0xDC,0x65,0x2E,0xF1,0xED,0x47,0xA5,0x1C,0x18,0xD9,0xDF,
+        0x9F,0xF4,0x8D,0x87,0x8D,0xB6,0x22,0xEA,0x6E,0x93,0x70,0xE9,
+        0xC6,0x3B,0x35,0x8B,0x7C,0x11,0x5A,0xA1 };
 
 /************ internal functions **********************************/
 
@@ -283,12 +338,12 @@ int dnie_read_file(sc_card_t * card,
  * Read SM required certificates from card.
  *
  * This function uses received path to read a certificate file from
- * card. 
+ * card.
  * No validation is done except that received data is effectively a certificate
  * @param card Pointer to card driver structure
  * @param certpat path to requested certificate
  * @param cert where to store resultig data
- * @return SC_SUCCESS if ok, else error code 
+ * @return SC_SUCCESS if ok, else error code
  */
 static int dnie_read_certificate(sc_card_t * card, char *certpath, X509 ** cert)
 {
@@ -413,8 +468,30 @@ static int dnie_get_cvc_ifd_cert(sc_card_t * card, u8 ** cert, size_t * length)
 }
 
 /**
+ * Retrieve IFD (application) CVC certificate and length.
+ *
+ * Returns a byte array with the application's certificate
+ * (in CardVerifiable Certificate format) to be sent to the
+ * card in External Authentication process
+ * As this is local provider, just points to provided static data,
+ * and allways return success
+ *
+ * @param card Pointer to card driver Certificate
+ * @param cert Where to store resulting byte array
+ * @param length len of returned byte array
+ * @return SC_SUCCESS if ok; else error code
+ */
+static int dnie_get_cvc_ifd_cert_pin_channel(sc_card_t * card, u8 ** cert, size_t * length)
+{
+	LOG_FUNC_CALLED(card->ctx);
+	*cert = pin_c_CV_IFD_AUT;
+	*length = sizeof(pin_c_CV_IFD_AUT);
+	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
+}
+
+/**
  * Get IFD (Terminal) private key data.
- * 
+ *
  * As this is a local (in memory) provider, just get data specified in
  * DNIe's manual and compose an OpenSSL private key structure
  *
@@ -445,6 +522,50 @@ static int dnie_get_ifd_privkey(sc_card_t * card, EVP_PKEY ** ifd_privkey)
 		      ifd_rsa->e);
 	ifd_rsa->d =
 	    BN_bin2bn(ifd_private_exponent, sizeof(ifd_private_exponent),
+		      ifd_rsa->d);
+	res = EVP_PKEY_assign_RSA(*ifd_privkey, ifd_rsa);
+	if (!res) {
+		if (*ifd_privkey)
+			EVP_PKEY_free(*ifd_privkey);	/* implies ifd_rsa free() */
+		sc_log(card->ctx, "Cannot compose IFD private key");
+		return SC_ERROR_INTERNAL;
+	}
+	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
+}
+
+/**
+ * Get IFD (Terminal) private key data.
+ *
+ * As this is a local (in memory) provider, just get data specified in
+ * DNIe's manual and compose an OpenSSL private key structure
+ *
+ * Notice that resulting data should be keept in memory as little as possible
+ * Erasing them once used
+ *
+ * @param card pointer to card driver structure
+ * @param ifd_privkey where to store IFD private key
+ * @return SC_SUCCESS if ok; else error code
+ */
+static int dnie_get_ifd_privkey_pin_channel(sc_card_t * card, EVP_PKEY ** ifd_privkey)
+{
+	RSA *ifd_rsa=NULL;
+	int res=SC_SUCCESS;
+
+	LOG_FUNC_CALLED(card->ctx);
+
+	/* compose ifd_private key with data provided in Annex 3 of DNIe Manual */
+	*ifd_privkey = EVP_PKEY_new();
+	ifd_rsa = RSA_new();
+	if (!*ifd_privkey || !ifd_rsa) {
+		sc_log(card->ctx, "Cannot create data for IFD private key");
+		return SC_ERROR_OUT_OF_MEMORY;
+	}
+	ifd_rsa->n = BN_bin2bn(pin_sk_FD_AUT_n, sizeof(pin_sk_FD_AUT_n), ifd_rsa->n);
+	ifd_rsa->e =
+	    BN_bin2bn(ifd_public_exponent, sizeof(ifd_public_exponent),
+		      ifd_rsa->e);
+	ifd_rsa->d =
+	    BN_bin2bn(pin_sk_IFD_AUT_d, sizeof(pin_sk_IFD_AUT_d),
 		      ifd_rsa->d);
 	res = EVP_PKEY_assign_RSA(*ifd_privkey, ifd_rsa);
 	if (!res) {
@@ -536,11 +657,30 @@ static int dnie_get_ifd_pubkey_ref(sc_card_t * card, u8 ** buf, size_t * len)
 }
 
 /**
+ *  Retrieve public key reference for IFD certificate.
+ *
+ * This tells the card with in memory key reference is to be used
+ * when CVC cert is sent for external auth procedure
+ * As this driver is for local SM authentication SC_SUCCESS is allways returned
+ *
+ * @param card pointer to card driver structure
+ * @param buf where to store data to be sent
+ * @param len where to store data length
+ * @return SC_SUCCESS if ok; else error code
+ */
+static int dnie_get_ifd_pubkey_ref_pin_channel(sc_card_t * card, u8 ** buf, size_t * len)
+{
+	*buf = pin_pk_IFD_AUT_keyRef;
+	*len = sizeof(pin_pk_IFD_AUT_keyRef);
+	return SC_SUCCESS;
+}
+
+/**
  * Retrieve key reference for ICC privkey.
- * 
- * In local SM stablishment, just retrieve key reference from static 
+ *
+ * In local SM stablishment, just retrieve key reference from static
  * data tables and just return success
- * 
+ *
  * @param card pointer to card driver structure
  * @param buf where to store data
  * @param len where to store data length
@@ -566,6 +706,22 @@ static int dnie_get_icc_privkey_ref(sc_card_t * card, u8 ** buf, size_t * len)
 static int dnie_get_sn_ifd(sc_card_t * card, u8 ** buf)
 {
 	*buf = sn_ifd;
+	return SC_SUCCESS;
+}
+
+/**
+ * Retrieve SN.IFD (8 bytes left padded with zeroes if required).
+ *
+ * In DNIe local SM procedure, just read it from static data and
+ * return SC_SUCCESS
+ *
+ * @param card pointer to card structure
+ * @param buf where to store result (8 bytes)
+ * @return SC_SUCCESS if ok; else error
+ */
+static int dnie_get_sn_ifd_pin_channel(sc_card_t * card, u8 ** buf)
+{
+	*buf = pin_sn_IFD;
 	return SC_SUCCESS;
 }
 
@@ -597,11 +753,11 @@ static int dnie_get_sn_icc(sc_card_t * card, u8 ** buf)
  * CWA-14890 SM stablisment pre-operations.
  *
  * DNIe needs to get icc serial number at the begin of the sm creation
- * (to avoid breaking key references) so get it an store into serialnr 
+ * (to avoid breaking key references) so get it an store into serialnr
  * cache here.
  *
  * In this way if get_sn_icc is called(), we make sure that no APDU
- * command is to be sent to card, just retrieve it from cache 
+ * command is to be sent to card, just retrieve it from cache
  *
  * @param card pointer to card driver structure
  * @param provider pointer to SM data provider for DNIe
@@ -623,7 +779,7 @@ static int dnie_create_pre_ops(sc_card_t * card, cwa_provider_t * provider)
  * Main entry point for DNIe CWA14890 SM data provider.
  *
  * Return a pointer to DNIe data provider with proper function pointers
- * 
+ *
  * @param card pointer to card driver data structure
  * @return cwa14890 DNIe data provider if success, null on error
  */
@@ -635,6 +791,7 @@ cwa_provider_t *dnie_get_cwa_provider(sc_card_t * card)
 		return NULL;
 
 	/* set up proper data */
+	res->cwa_card_version = card->atr.value[15];
 
 	/* pre and post operations */
 	res->cwa_create_pre_ops = dnie_create_pre_ops;
@@ -686,6 +843,26 @@ cwa_provider_t *dnie_get_cwa_provider(sc_card_t * card)
 	/* pre and post operations */
 	res->cwa_decode_pre_ops = NULL;
 	res->cwa_decode_post_ops = NULL;
+
+	return res;
+}
+
+/**
+ * Return a pointer to DNIe data provider for PIN channel
+ *
+ * @param card pointer to card driver data structure
+ * @return cwa14890 DNIe data provider if success, null on error
+ */
+cwa_provider_t *dnie_get_cwa_provider_pin_channel(sc_card_t * card)
+{
+	cwa_provider_t * res;
+
+	res = dnie_get_cwa_provider(card);
+
+	res->cwa_get_cvc_ifd_cert = dnie_get_cvc_ifd_cert_pin_channel;
+	res->cwa_get_ifd_privkey = dnie_get_ifd_privkey_pin_channel;
+	res->cwa_get_ifd_pubkey_ref = dnie_get_ifd_pubkey_ref_pin_channel;
+	res->cwa_get_sn_ifd = dnie_get_sn_ifd_pin_channel;
 
 	return res;
 }
@@ -809,8 +986,8 @@ static int dnie_transmit_apdu_internal(sc_card_t * card, sc_apdu_t * apdu)
  * Called before sc_transmit_apdu() to allowing APDU wrapping
  * If set to NULL no wrapping process will be done
  * Usefull on Secure Messaging APDU encode/decode
- * If returned value is greater than zero, do_single_transmit() 
- * will be called, else means either SC_SUCCESS or error code 
+ * If returned value is greater than zero, do_single_transmit()
+ * will be called, else means either SC_SUCCESS or error code
  *
  * NOTE:
  * DNIe doesn't handle apdu chaining; instead apdus with
@@ -821,7 +998,7 @@ static int dnie_transmit_apdu_internal(sc_card_t * card, sc_apdu_t * apdu)
  *
  * @param card Pointer to Card Structure
  * @param apdu to be wrapped
- * @return 
+ * @return
  * - positive: use OpenSC's sc_transmit_apdu()
  * - negative: error
  * - zero: success: no need to further transmission
@@ -868,8 +1045,8 @@ static int dnie_wrap_apdu(sc_card_t * card, sc_apdu_t * apdu)
 			switch(provider->status.session.state) {
 				/* No SM or creating: collision with other process
 				   just retry as SM error reset ICC SM state */
-				case CWA_SM_NONE: 
-				case CWA_SM_INPROGRESS: 
+				case CWA_SM_NONE:
+				case CWA_SM_INPROGRESS:
 					continue;
 				/* SM was active: force restart SM and retry */
 				case CWA_SM_ACTIVE:
