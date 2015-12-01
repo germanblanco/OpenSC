@@ -619,6 +619,13 @@ static int dnie_create_pre_ops(sc_card_t * card, cwa_provider_t * provider)
 	return sc_card_ctl(card, SC_CARDCTL_GET_SERIALNR, &serial);
 }
 
+static int dnie_create_post_ops(sc_card_t * card, cwa_provider_t * provider)
+{
+	card->sm_ctx.sm_mode = SM_MODE_TRANSMIT;
+
+	return SC_SUCCESS;
+}
+
 /**
  * Main entry point for DNIe CWA14890 SM data provider.
  *
@@ -638,7 +645,7 @@ cwa_provider_t *dnie_get_cwa_provider(sc_card_t * card)
 
 	/* pre and post operations */
 	res->cwa_create_pre_ops = dnie_create_pre_ops;
-	res->cwa_create_post_ops = NULL;
+	res->cwa_create_post_ops = dnie_create_post_ops;
 
 	/* Get ICC intermediate CA  path */
 	res->cwa_get_icc_intermediate_ca_cert =

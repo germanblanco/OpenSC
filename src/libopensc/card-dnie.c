@@ -837,7 +837,7 @@ static int dnie_init(struct sc_card *card)
 	memset(&(card->sm_ctx), 0, sizeof(sm_context_t));
 	card->sm_ctx.ops.get_sm_apdu = dnie_sm_get_wrapped_apdu;
 	card->sm_ctx.ops.free_sm_apdu = dnie_sm_free_wrapped_apdu;
-	card->sm_ctx.sm_mode = SM_MODE_TRANSMIT;
+	card->sm_ctx.sm_mode = SM_MODE_NONE;
 #endif
 
 	init_flags(card);
