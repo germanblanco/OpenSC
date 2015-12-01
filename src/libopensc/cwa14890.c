@@ -1599,6 +1599,8 @@ int cwa_encode_apdu(sc_card_t * card,
 
 	/* that's all folks */
 	res = SC_SUCCESS;
+	/* trace APDU after encoding process */
+	cwa_trace_apdu(card, to, 0);
 	goto encode_end_apdu_valid;
 
 err:
