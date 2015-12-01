@@ -902,11 +902,82 @@ cleanup_and_return:
 	LOG_FUNC_RETURN(ctx, res);
 }
 
+int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apdu *sm)
+{
+	sc_context_t *ctx;
+	cwa_provider_t *provider = NULL;
+	int res = SC_SUCCESS;
+
+	if ((card == NULL) || (card->ctx == NULL) || (plain == NULL))
+		return SC_ERROR_INVALID_ARGUMENTS;
+
+	ctx=card->ctx;
+	LOG_FUNC_CALLED(ctx);
+	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
+
+	memcpy(sm, plain, sizeof(sc_apdu_t));
+	/* SM is active, encode apdu */
+	if (provider->status.session.state == CWA_SM_ACTIVE) {
+		sm->resp = NULL;
+		sm->resplen = 0;	/* let get_response() assign space */
+		res = cwa_encode_apdu(card, provider, plain, sm);
+		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
+	}
+
+	/* if SM is on, assure rx buffer exists and force get_response */
+	if (provider->status.session.state == CWA_SM_ACTIVE) {
+		if (sm->cse == SC_APDU_CASE_3_SHORT)
+			sm->cse = SC_APDU_CASE_4_SHORT;
+		if (sm->resplen == 0) {	/* no response buffer: create */
+			sm->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
+			if (sm->resp == NULL)
+				LOG_FUNC_RETURN(card->ctx, SC_ERROR_OUT_OF_MEMORY);
+			sm->resplen = MAX_RESP_BUFFER_SIZE;
+			sm->le = card->max_recv_size;
+		}
+	}
+
+	return SC_SUCCESS;
+}
+
+int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu *plain)
+{
+	sc_context_t *ctx;
+	cwa_provider_t *provider = NULL;
+	int res = SC_SUCCESS;
+
+	ctx=card->ctx;
+	LOG_FUNC_CALLED(ctx);
+	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
+
+	/* parse response and handle SM related errors */
+	res=card->ops->check_sw(card,sm->sw1,sm->sw2);
+	if (res == SC_SUCCESS) {
+		/* if SM is active; decode apdu */
+		if (provider->status.session.state == CWA_SM_ACTIVE) {
+			free(plain->resp);
+			plain->resp = NULL;
+			plain->resplen = 0;	/* let cwa_decode_response() eval & create size */
+			res = cwa_decode_response(card, provider, sm, plain);
+			LOG_TEST_RET(ctx, res, "Error in cwa_decode_response process");
+		} else {
+			/* memcopy result to original apdu */
+			memcpy(plain->resp, sm->resp, sm->resplen);
+			plain->resplen = sm->resplen;
+		}
+	}
+
+	plain->sw1 = sm->sw1;
+	plain->sw2 = sm->sw2;
+
+	LOG_FUNC_RETURN(ctx, SC_SUCCESS);
+}
+
 int dnie_transmit_apdu(sc_card_t * card, sc_apdu_t * apdu)
 {
-	int res = SC_SUCCESS;
+/*	int res = SC_SUCCESS;
 	res = dnie_wrap_apdu(card, apdu);
-	if (res <= 0) return res;
+	if (res <= 0) return res;*/
 	return sc_transmit_apdu(card, apdu);
 }
 
