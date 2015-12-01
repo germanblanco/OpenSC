@@ -907,6 +907,10 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 	sc_context_t *ctx;
 	cwa_provider_t *provider = NULL;
 	int res = SC_SUCCESS;
+	unsigned char * resp = NULL; 
+	size_t resplen = 0;
+	const unsigned char * data = NULL;
+	size_t datalen = 0;
 
 	if ((card == NULL) || (card->ctx == NULL) || (plain == NULL))
 		return SC_ERROR_INVALID_ARGUMENTS;
@@ -915,26 +919,21 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 	LOG_FUNC_CALLED(ctx);
 	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
 
+	resp = sm->resp;
+	resplen = sm->resplen;
+	data = sm->data; // set to NULL in dnie_sm_get_wrapped_apdu
+	datalen = sm->datalen; // set to 0 in dnie_sm_get_wrapped_apdu
 	memcpy(sm, plain, sizeof(sc_apdu_t));
+	sm->resp = resp;
+	sm->resplen = resplen;
+	sm->data = data;
+	sm->datalen = datalen;
 	/* SM is active, encode apdu */
 	if (provider->status.session.state == CWA_SM_ACTIVE) {
-		sm->resp = NULL;
-		sm->resplen = 0;	/* let get_response() assign space */
-		res = cwa_encode_apdu(card, provider, plain, sm);
+		res = cwa_encode_apdu(card, provider, plain, sm); // allocates data, does not touch resp
 		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
-	}
-
-	/* if SM is on, assure rx buffer exists and force get_response */
-	if (provider->status.session.state == CWA_SM_ACTIVE) {
 		if (sm->cse == SC_APDU_CASE_3_SHORT)
 			sm->cse = SC_APDU_CASE_4_SHORT;
-		if (sm->resplen == 0) {	/* no response buffer: create */
-			sm->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
-			if (sm->resp == NULL)
-				LOG_FUNC_RETURN(card->ctx, SC_ERROR_OUT_OF_MEMORY);
-			sm->resplen = MAX_RESP_BUFFER_SIZE;
-			sm->le = card->max_recv_size;
-		}
 	}
 
 	return SC_SUCCESS;
@@ -950,20 +949,26 @@ int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu
 	LOG_FUNC_CALLED(ctx);
 	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
 
+	sc_log(card->ctx, "gbb unwrap para %d in %d\n", sm->data, sm);
+
 	/* parse response and handle SM related errors */
 	res=card->ops->check_sw(card,sm->sw1,sm->sw2);
 	if (res == SC_SUCCESS) {
 		/* if SM is active; decode apdu */
 		if (provider->status.session.state == CWA_SM_ACTIVE) {
+	sc_log(card->ctx, "gbb 1 %d in %d\n", sm->data, sm);
 			free(plain->resp);
 			plain->resp = NULL;
 			plain->resplen = 0;	/* let cwa_decode_response() eval & create size */
 			res = cwa_decode_response(card, provider, sm, plain);
 			LOG_TEST_RET(ctx, res, "Error in cwa_decode_response process");
 		} else {
+	sc_log(card->ctx, "gbb 2 %d in %d resplen %d\n", sm->data, sm, sm->resplen);
+	sc_log(card->ctx, "gbb resp 2 %d in %d resplen %d\n", plain->resp, plain, plain->resplen);
 			/* memcopy result to original apdu */
 			memcpy(plain->resp, sm->resp, sm->resplen);
 			plain->resplen = sm->resplen;
+	sc_log(card->ctx, "gbb 3 %d in %d\n", sm->data, sm);
 		}
 	}
 

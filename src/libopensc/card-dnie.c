@@ -741,9 +741,12 @@ static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
 	if (!(*sm_apdu))
 		LOG_FUNC_RETURN(ctx, SC_SUCCESS);
 
+	sc_log(card->ctx, "gbb antes liberando memoria para %d in %d\n", (*sm_apdu)->data, (*sm_apdu));
+
 	if (plain)
 		rv = dnie_sm_unwrap_apdu(card, *sm_apdu, plain);
 
+	sc_log(card->ctx, "gbb liberando memoria para %d in %d\n", (*sm_apdu)->data, (*sm_apdu));
 	if ((*sm_apdu)->data)
 		free((unsigned char *) (*sm_apdu)->data);
 	if ((*sm_apdu)->resp)
@@ -772,17 +775,13 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 		rv = SC_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
-	apdu->data = calloc (1, SC_MAX_EXT_APDU_BUFFER_SIZE);
-	if (!apdu->data) {
-		rv = SC_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
+	apdu->data = NULL; // allocated in cwa_encode_apdu
 	apdu->resp = calloc (1, SC_MAX_EXT_APDU_BUFFER_SIZE);
 	if (!apdu->resp) {
 		rv = SC_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
-	apdu->datalen = SC_MAX_EXT_APDU_BUFFER_SIZE;
+	apdu->datalen = 0;
 	apdu->resplen = SC_MAX_EXT_APDU_BUFFER_SIZE;
 
 	rv = dnie_sm_wrap_apdu(card, plain, apdu);
@@ -792,10 +791,13 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 			goto err;
 	}
 
+	sc_log(card->ctx, "gbb memoria reservada para %d en %d esta todavia ahi\n", apdu->data, apdu);
+
 	*sm_apdu = apdu;
 	apdu = NULL;
 err:
 	if (apdu) {
+		sc_log(card->ctx, "gbb liberando memoria para %d\n", apdu->data);
 		free((unsigned char *) apdu->data);
 		free(apdu->resp);
 		free(apdu);
