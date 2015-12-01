@@ -960,6 +960,9 @@ int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu
 
 	/* parse response and handle SM related errors */
 	res=card->ops->check_sw(card,sm->sw1,sm->sw2);
+	
+	LOG_TEST_RET(card, res, "Error in Check SW unwrapping apdu.\n");
+	
 	if (res == SC_SUCCESS) {
 		/* if SM is active; decode apdu */
 		if (provider->status.session.state == CWA_SM_ACTIVE) {
