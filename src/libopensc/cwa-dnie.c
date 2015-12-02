@@ -937,10 +937,10 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 	sm->datalen = datalen;
 	/* SM is active, encode apdu */
 	if (provider->status.session.state == CWA_SM_ACTIVE) {
-		res = cwa_encode_apdu(card, provider, plain, sm); // allocates data, does not touch resp
-		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
 		if (sm->cse == SC_APDU_CASE_3_SHORT)
 			sm->cse = SC_APDU_CASE_4_SHORT;
+		res = cwa_encode_apdu(card, provider, plain, sm); // allocates data, does not touch resp
+		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
 	}
 
 	return SC_SUCCESS;
@@ -958,11 +958,6 @@ int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu
 
 	sc_log(card->ctx, "gbb unwrap para %d in %d\n", sm->data, sm);
 
-	/* parse response and handle SM related errors */
-	res=card->ops->check_sw(card,sm->sw1,sm->sw2);
-	
-	LOG_TEST_RET(card, res, "Error in Check SW unwrapping apdu.\n");
-	
 	if (res == SC_SUCCESS) {
 		/* if SM is active; decode apdu */
 		if (provider->status.session.state == CWA_SM_ACTIVE) {
