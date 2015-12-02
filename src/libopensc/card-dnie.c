@@ -746,8 +746,8 @@ static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
 
 	if (((*sm_apdu)->data) != plain->data)
 		free((unsigned char *) (*sm_apdu)->data);
-	if (((*sm_apdu)->resp) != plain->resp)
-		free((*sm_apdu)->resp);
+/*	if (((*sm_apdu)->resp) != plain->resp)
+		free((*sm_apdu)->resp);*/
 	free(*sm_apdu);
 	*sm_apdu = NULL;
 
@@ -782,6 +782,7 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 	apdu->resplen = SC_MAX_EXT_APDU_BUFFER_SIZE;
 
 	rv = dnie_sm_wrap_apdu(card, plain, apdu);
+	sc_log(card->ctx, "gbb cse %d", apdu->cse);
 	if (rv)   {
 		rv = dnie_sm_free_wrapped_apdu(card, NULL, &apdu);
 		if (rv < 0)

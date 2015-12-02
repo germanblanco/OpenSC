@@ -314,8 +314,8 @@ sc_check_apdu(sc_card_t *card, const sc_apdu_t *apdu)
 		if (apdu->datalen == 0 || apdu->data == NULL || apdu->lc == 0)
 			goto error;
 		/* no data is expected    */
-		if (apdu->le != 0)
-			goto error;
+/*		if (apdu->le != 0)
+			goto error;*/
 		/* inconsistent datalen   */
 		if (apdu->datalen != apdu->lc)
 			goto error;

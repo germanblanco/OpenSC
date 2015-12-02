@@ -938,12 +938,22 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 	/* SM is active, encode apdu */
 	sc_log(card->ctx, "gbb cse %d CASE_2 %d CASE 3 %d\n", sm->cse, SC_APDU_CASE_2_SHORT, SC_APDU_CASE_3_SHORT);
 	if (provider->status.session.state == CWA_SM_ACTIVE) {
-		if (sm->cse == SC_APDU_CASE_3_SHORT)
-			sm->cse = SC_APDU_CASE_4_SHORT;
+		if (plain->cse == SC_APDU_CASE_3_SHORT)
+			plain->cse = SC_APDU_CASE_4_SHORT;
+		if (plain->resplen == 0) {	/* no response buffer: create */
+			plain->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
+			if (plain->resp == NULL)
+				LOG_FUNC_RETURN(card->ctx, SC_ERROR_OUT_OF_MEMORY);
+			plain->resplen = MAX_RESP_BUFFER_SIZE;
+			plain->le = card->max_recv_size;
+		}
+	sc_log(card->ctx, "gbb cse %d", plain->cse);
 		res = cwa_encode_apdu(card, provider, plain, sm); // allocates data, does not touch resp
+	sc_log(card->ctx, "gbb cse %d", sm->cse);
 		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
 	}
 
+	sc_log(card->ctx, "gbb cse %d", sm->cse);
 	return SC_SUCCESS;
 }
 
@@ -1013,11 +1023,12 @@ void dnie_free_apdu_buffers(sc_apdu_t *apdu,
 		apdu->resp = resp;
 		apdu->resplen = resplen;
 	}
-	if (apdu->data != data) {
-		free(apdu->data);
+/*	if (apdu->data != data) {
+		free((void *)apdu->data);
 		apdu->data = data;
 		apdu->datalen = datalen;
-	}
+		apdu->lc = 0;
+	}*/
 }
 
 #endif				/* HAVE_OPENSSL */
