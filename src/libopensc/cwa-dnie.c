@@ -956,24 +956,16 @@ int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu
 	LOG_FUNC_CALLED(ctx);
 	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
 
-	sc_log(card->ctx, "gbb unwrap para %d in %d\n", sm->data, sm);
-
 	if (res == SC_SUCCESS) {
 		/* if SM is active; decode apdu */
 		if (provider->status.session.state == CWA_SM_ACTIVE) {
-	sc_log(card->ctx, "gbb 1 %d in %d\n", sm->data, sm);
-			free(plain->resp);
-			plain->resp = NULL;
-			plain->resplen = 0;	/* let cwa_decode_response() eval & create size */
+			sm->cse = plain->cse; /* revert cle change */
 			res = cwa_decode_response(card, provider, sm, plain);
 			LOG_TEST_RET(ctx, res, "Error in cwa_decode_response process");
 		} else {
-	sc_log(card->ctx, "gbb 2 %d in %d resplen %d\n", sm->data, sm, sm->resplen);
-	sc_log(card->ctx, "gbb resp 2 %d in %d resplen %d\n", plain->resp, plain, plain->resplen);
 			/* memcopy result to original apdu */
 			memcpy(plain->resp, sm->resp, sm->resplen);
 			plain->resplen = sm->resplen;
-	sc_log(card->ctx, "gbb 3 %d in %d\n", sm->data, sm);
 		}
 	}
 
@@ -988,7 +980,9 @@ int dnie_transmit_apdu(sc_card_t * card, sc_apdu_t * apdu)
 /*	int res = SC_SUCCESS;
 	res = dnie_wrap_apdu(card, apdu);
 	if (res <= 0) return res;*/
-	return sc_transmit_apdu(card, apdu);
+	int res = 0;
+	res = sc_transmit_apdu(card, apdu);
+	return res;
 }
 
 void dnie_format_apdu(sc_card_t *card, sc_apdu_t *apdu,
@@ -1010,12 +1004,18 @@ void dnie_format_apdu(sc_card_t *card, sc_apdu_t *apdu,
 }
 
 void dnie_free_apdu_buffers(sc_apdu_t *apdu,
-				unsigned char * resp, size_t resplen)
+				unsigned char * resp, size_t resplen,
+				const unsigned char * data, size_t datalen)
 {
 	if (apdu->resp != resp) {
 		free(apdu->resp);
 		apdu->resp = resp;
 		apdu->resplen = resplen;
+	}
+	if (apdu->data != data) {
+		free(apdu->data);
+		apdu->data = data;
+		apdu->datalen = datalen;
 	}
 }
 

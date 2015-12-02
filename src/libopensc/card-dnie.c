@@ -641,7 +641,7 @@ static int dnie_get_serialnr(sc_card_t * card, sc_serial_number_t * serial)
 	/* send apdu */
 	result = dnie_transmit_apdu(card, &apdu);
 	if (result != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), NULL, 0);
 		LOG_TEST_RET(card->ctx, result, "APDU transmit failed");
 	}
 	if (apdu.sw1 != 0x90 || apdu.sw2 != 0x00)
@@ -659,7 +659,7 @@ static int dnie_get_serialnr(sc_card_t * card, sc_serial_number_t * serial)
 	memcpy(serial, &card->serialnr, sizeof(*serial));
 	sc_log(card->ctx, "Serial Number (apdu): '%s'",
 	       sc_dump_hex(serial->value, serial->len));
-	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), NULL, 0);
 	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 }
 
@@ -747,9 +747,9 @@ static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
 		rv = dnie_sm_unwrap_apdu(card, *sm_apdu, plain);
 
 	sc_log(card->ctx, "gbb liberando memoria para %d in %d\n", (*sm_apdu)->data, (*sm_apdu));
-	if ((*sm_apdu)->data)
+	if (((*sm_apdu)->data) != plain->data)
 		free((unsigned char *) (*sm_apdu)->data);
-	if ((*sm_apdu)->resp)
+	if (((*sm_apdu)->resp) != plain->resp)
 		free((*sm_apdu)->resp);
 	free(*sm_apdu);
 	*sm_apdu = NULL;
@@ -791,13 +791,10 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 			goto err;
 	}
 
-	sc_log(card->ctx, "gbb memoria reservada para %d en %d esta todavia ahi\n", apdu->data, apdu);
-
 	*sm_apdu = apdu;
 	apdu = NULL;
 err:
 	if (apdu) {
-		sc_log(card->ctx, "gbb liberando memoria para %d\n", apdu->data);
 		free((unsigned char *) apdu->data);
 		free(apdu->resp);
 		free(apdu);
@@ -1171,7 +1168,7 @@ static int dnie_compose_and_send_apdu(sc_card_t *card, const u8 *path, size_t pa
 	}
 	res = dnie_transmit_apdu(card, &apdu);
 	if ((res != SC_SUCCESS) || (file_out == NULL))
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), path, pathlen);
 	LOG_TEST_RET(ctx, res, "SelectFile() APDU transmit failed");
 	if (file_out == NULL) {
 		if (apdu.sw1 == 0x61)
@@ -1183,25 +1180,25 @@ static int dnie_compose_and_send_apdu(sc_card_t *card, const u8 *path, size_t pa
 	/* analyze response. if FCI, try to parse */
 	res = sc_check_sw(card, apdu.sw1, apdu.sw2);
 	if (res != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), path, pathlen);
 		LOG_TEST_RET(ctx, res, "SelectFile() check_sw failed");
 	}
 	if ((apdu.resplen < 2) || (apdu.resp[0] == 0x00)) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), path, pathlen);
 		LOG_FUNC_RETURN(ctx, SC_ERROR_UNKNOWN_DATA_RECEIVED);
 	}
 
 	/* finally process FCI response */
 	file = sc_file_new();
 	if (file == NULL) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), path, pathlen);
 		LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
 	}
 	res = card->ops->process_fci(card, file, apdu.resp + 2, apdu.resp[1]);
 	if (*file_out != NULL)
 		sc_file_free(*file_out);
 	*file_out = file;
-	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), path, pathlen);
 	LOG_FUNC_RETURN(ctx, res);
 }
 
@@ -1372,16 +1369,16 @@ static int dnie_get_challenge(struct sc_card *card, u8 * rnd, size_t len)
 		size_t n = len > 8 ? 8 : len;
 		result = dnie_transmit_apdu(card, &apdu);
 		if (result != SC_SUCCESS) {
-			dnie_free_apdu_buffers(&apdu, buf, 8);
+			dnie_free_apdu_buffers(&apdu, buf, 8, NULL, 0);
 			LOG_TEST_RET(card->ctx, result, "APDU transmit failed");
 		}
 		if (apdu.resplen != 8) {
 			result = sc_check_sw(card, apdu.sw1, apdu.sw2);
-			dnie_free_apdu_buffers(&apdu, buf, 8);
+			dnie_free_apdu_buffers(&apdu, buf, 8, NULL, 0);
 			goto dnie_get_challenge_error;
 		}
 		memcpy(rnd, apdu.resp, n);
-		dnie_free_apdu_buffers(&apdu, buf, 8);
+		dnie_free_apdu_buffers(&apdu, buf, 8, NULL, 0);
 		len -= n;
 		rnd += n;
 	}
@@ -1540,7 +1537,7 @@ static int dnie_set_security_env(struct sc_card *card,
 
 	/* send composed apdu and parse result */
 	result = dnie_transmit_apdu(card, &apdu);
-	dnie_free_apdu_buffers(&apdu, NULL, 0);
+	dnie_free_apdu_buffers(&apdu, NULL, 0, apdu.data, apdu.datalen);
 	LOG_TEST_RET(card->ctx, result, "Set Security Environment failed");
 	result = sc_check_sw(card, apdu.sw1, apdu.sw2);
 
@@ -1690,13 +1687,13 @@ static int dnie_compute_signature(struct sc_card *card,
 	/* tell card to compute signature */
 	result = dnie_transmit_apdu(card, &apdu);
 	if (result != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), data, datalen);
 		LOG_TEST_RET(card->ctx, result, "compute_signature() failed");
 	}
 	/* check response */
 	result = sc_check_sw(card, apdu.sw1, apdu.sw2);
 	if (result != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+		dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), data, datalen);
 		LOG_TEST_RET(card->ctx, result, "compute_signature() response error");
 	}
 
@@ -1704,7 +1701,7 @@ static int dnie_compute_signature(struct sc_card *card,
 	result_resplen = apdu.resplen;
 	memcpy(out, apdu.resp, result_resplen);
 	/* and return response length */
-	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf));
+	dnie_free_apdu_buffers(&apdu, rbuf, sizeof(rbuf), data, datalen);
 	LOG_FUNC_RETURN(card->ctx, result_resplen);
 }
 
@@ -1764,7 +1761,7 @@ static int dnie_list_files(sc_card_t * card, u8 * buf, size_t buflen)
 			data[0] = (u8) (0xff & id1);
 			data[1] = (u8) (0xff & id2);
 			res = dnie_transmit_apdu(card, &apdu);
-			dnie_free_apdu_buffers(&apdu, NULL, 0);
+			dnie_free_apdu_buffers(&apdu, NULL, 0, data, 2);
 			if (res != SC_SUCCESS) {
 				sc_log(card->ctx, "List file '%02X%02X' failed",
 				       id1, id2);
@@ -1917,7 +1914,7 @@ static int dnie_read_header(struct sc_card *card)
 	/* transmit apdu */
 	r = dnie_transmit_apdu(card, &apdu);
 	if (r != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE);
+		dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE, NULL, 0);
 		sc_log(ctx, "read_header() APDU transmit failed");
 		LOG_FUNC_RETURN(ctx, r);
 	}
@@ -1932,12 +1929,12 @@ static int dnie_read_header(struct sc_card *card)
 		goto header_notcompressed;
 	/* ok: assume data is correct */
 	sc_log(ctx, "read_header: uncompressed file size is %lu", uncompressed);
-	dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE);
+	dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE, NULL, 0);
 	return (int)(0x7FFF & uncompressed);
 
  header_notcompressed:
 	sc_log(ctx, "response doesn't match compressed file header");
-	dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE);
+	dnie_free_apdu_buffers(&apdu, buf, SC_MAX_APDU_BUFFER_SIZE, NULL, 0);
 	return 0;
 }
 
@@ -2167,7 +2164,7 @@ static int dnie_pin_verify(struct sc_card *card,
 	sc_apdu_t apdu;
 
 	u8 pinbuffer[SC_MAX_APDU_BUFFER_SIZE];
-	int pinlen = 0;
+	int pinlen = SC_MAX_APDU_BUFFER_SIZE;
 	int padding = 0;
 
 	LOG_FUNC_CALLED(card->ctx);
@@ -2192,7 +2189,7 @@ static int dnie_pin_verify(struct sc_card *card,
 	/* and send to card throught virtual channel */
 	res = dnie_transmit_apdu(card, &apdu);
 	if (res != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, NULL, 0);
+		dnie_free_apdu_buffers(&apdu, NULL, 0, pinbuffer, pinlen);
 		LOG_TEST_RET(card->ctx, res, "VERIFY APDU Transmit fail");
 	}
 
@@ -2200,14 +2197,14 @@ static int dnie_pin_verify(struct sc_card *card,
 	if (tries_left != NULL) {	/* returning tries_left count is requested */
 		if ((apdu.sw1 == 0x63) && ((apdu.sw2 & 0xF0) == 0xC0)) {
 			*tries_left = apdu.sw2 & 0x0F;
-			dnie_free_apdu_buffers(&apdu, NULL, 0);
+			dnie_free_apdu_buffers(&apdu, NULL, 0, pinbuffer, pinlen);
 			LOG_FUNC_RETURN(card->ctx, SC_ERROR_PIN_CODE_INCORRECT);
 		}
 	}
 	res = dnie_check_sw(card, apdu.sw1, apdu.sw2);	/* not a pinerr: parse result */
 
 	/* the end: a bit of Mister Proper and return */
-	dnie_free_apdu_buffers(&apdu, NULL, 0);
+	dnie_free_apdu_buffers(&apdu, NULL, 0, pinbuffer, pinlen);
 	data->apdu = NULL;
 	LOG_FUNC_RETURN(card->ctx, res);
 #else

@@ -1454,11 +1454,19 @@ int cwa_encode_apdu(sc_card_t * card,
 	/* check if APDU is already encoded */
 	if ((from->cla & 0x0C) != 0) {
 		memcpy(to, from, sizeof(sc_apdu_t));
+		from->data = NULL;
+		from->datalen = 0;
+		from->resp = NULL;
+		from->datalen = 0;
 		res = SC_SUCCESS;	/* already encoded */
 		goto encode_end;
 	}
 	if (from->ins == 0xC0) {
 		memcpy(to, from, sizeof(sc_apdu_t));
+		from->data = NULL;
+		from->datalen = 0;
+		from->resp = NULL;
+		from->datalen = 0;
 		res = SC_SUCCESS;	/* dont encode GET Response cmd */
 		goto encode_end;
 	}
@@ -1677,6 +1685,10 @@ int cwa_decode_response(sc_card_t * card,
 	if (!from->resp || (from->resplen == 0)) {
 		sc_log(ctx, "Empty APDU response: assume not cwa encoded");
 		memcpy(to, from, sizeof(sc_apdu_t));
+		from->data = NULL;
+		from->datalen = 0;
+		from->resp = NULL;
+		from->datalen = 0;
 		return SC_SUCCESS;
 	}
 	/* checks if apdu response needs decoding by checking tags in response */
@@ -1690,6 +1702,10 @@ int cwa_decode_response(sc_card_t * card,
 	default:		/* else apdu response seems not to be cwa encoded */
 		sc_log(card->ctx, "APDU Response seems not to be cwa encoded");
 		memcpy(to, from, sizeof(sc_apdu_t));
+		from->data = NULL;
+		from->datalen = 0;
+		from->resp = NULL;
+		from->datalen = 0;
 		return SC_SUCCESS;	/* let process continue */
 	}
 

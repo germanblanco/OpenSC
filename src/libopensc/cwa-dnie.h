@@ -67,12 +67,13 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu *plain);
 
 void dnie_format_apdu(sc_card_t *card, sc_apdu_t *apdu,
-                       int cse, int ins, int p1, int p2, int le, int lc,
-                       unsigned char * resp, size_t resplen,
-                       const unsigned char * data, size_t datalen);
+						int cse, int ins, int p1, int p2, int le, int lc,
+						unsigned char * resp, size_t resplen,
+						const unsigned char * data, size_t datalen);
 
 void dnie_free_apdu_buffers(sc_apdu_t *apdu,
-                               unsigned char * resp, size_t resplen);
+							unsigned char * resp, size_t resplen,
+							const unsigned char * data, size_t datalen);
 
 #endif
 
