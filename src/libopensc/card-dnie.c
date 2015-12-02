@@ -741,12 +741,9 @@ static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
 	if (!(*sm_apdu))
 		LOG_FUNC_RETURN(ctx, SC_SUCCESS);
 
-	sc_log(card->ctx, "gbb antes liberando memoria para %d in %d\n", (*sm_apdu)->data, (*sm_apdu));
-
 	if (plain)
 		rv = dnie_sm_unwrap_apdu(card, *sm_apdu, plain);
 
-	sc_log(card->ctx, "gbb liberando memoria para %d in %d\n", (*sm_apdu)->data, (*sm_apdu));
 	if (((*sm_apdu)->data) != plain->data)
 		free((unsigned char *) (*sm_apdu)->data);
 	if (((*sm_apdu)->resp) != plain->resp)

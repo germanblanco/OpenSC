@@ -936,6 +936,7 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 	sm->data = data;
 	sm->datalen = datalen;
 	/* SM is active, encode apdu */
+	sc_log(card->ctx, "gbb cse %d CASE_2 %d CASE 3 %d\n", sm->cse, SC_APDU_CASE_2_SHORT, SC_APDU_CASE_3_SHORT);
 	if (provider->status.session.state == CWA_SM_ACTIVE) {
 		if (sm->cse == SC_APDU_CASE_3_SHORT)
 			sm->cse = SC_APDU_CASE_4_SHORT;
@@ -959,8 +960,8 @@ int dnie_sm_unwrap_apdu(struct sc_card *card, struct sc_apdu *sm, struct sc_apdu
 	if (res == SC_SUCCESS) {
 		/* if SM is active; decode apdu */
 		if (provider->status.session.state == CWA_SM_ACTIVE) {
-			sm->cse = plain->cse; /* revert cle change */
 			res = cwa_decode_response(card, provider, sm, plain);
+			plain->cse = sm->cse; /* revert cse change */
 			LOG_TEST_RET(ctx, res, "Error in cwa_decode_response process");
 		} else {
 			/* memcopy result to original apdu */
