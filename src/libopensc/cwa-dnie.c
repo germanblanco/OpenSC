@@ -947,9 +947,11 @@ int dnie_sm_wrap_apdu(struct sc_card *card, struct sc_apdu *plain, struct sc_apd
 			plain->resplen = MAX_RESP_BUFFER_SIZE;
 			plain->le = card->max_recv_size;
 		}
-	sc_log(card->ctx, "gbb cse %d", plain->cse);
+	sc_log(card->ctx, "gbb cse %d, cla %d, ins %d, p1 %d, p2 %d, le %d, lc %d.", 
+	plain->cse, plain->cla, plain->ins, plain->p1, plain->p2, plain->le, plain->lc);
 		res = cwa_encode_apdu(card, provider, plain, sm); // allocates data, does not touch resp
-	sc_log(card->ctx, "gbb cse %d", sm->cse);
+	sc_log(card->ctx, "gbb cse %d, cla %d, ins %d, p1 %d, p2 %d, le %d, lc %d.", 
+	sm->cse, sm->cla, sm->ins, sm->p1, sm->p2, sm->le, sm->lc);
 		LOG_TEST_RET(ctx, res, "Error in cwa_encode_apdu process");
 	}
 
