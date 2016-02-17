@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <execinfo.h>
 
 #include "opensc.h"
 #include "cardctl.h"
@@ -740,8 +741,20 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 	}
 	apdu->resplen = MAX_RESP_BUFFER_SIZE;
 
-	if (apdu->le == 0)
+	if (apdu->le == 0) {
+		void* tracePtrs[100];
+		int count = backtrace( tracePtrs, 100 );
+		int ii = 0;
+		char** funcNames = backtrace_symbols( tracePtrs, count );
+
+		// Print the stack trace
+		for( ii = 0; ii < count; ii++ )
+		    sc_log(ctx, "GBB:%s\n", funcNames[ii] );
+
+		// Free the string pointers
+		free( funcNames );
 		apdu->le = card->max_recv_size;
+	}
 
 	*sm_apdu = apdu;
 	LOG_FUNC_RETURN(ctx, rv);
