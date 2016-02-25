@@ -740,9 +740,6 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 	}
 	apdu->resplen = MAX_RESP_BUFFER_SIZE;
 
-	if (apdu->le == 0)
-		apdu->le = card->max_recv_size;
-
 	*sm_apdu = apdu;
 	LOG_FUNC_RETURN(ctx, rv);
 }

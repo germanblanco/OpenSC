@@ -1166,7 +1166,6 @@ static int dnie_compose_and_send_apdu(sc_card_t *card, const u8 *path, size_t pa
 
 	LOG_FUNC_CALLED(ctx);
 
-	/* Arriving here means need to compose and send apdu */
 	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0xA4, p1, 0, 
 					sc_get_max_recv_size(card), pathlen,
 					rbuf, sizeof(rbuf), path, pathlen);
@@ -1175,7 +1174,7 @@ static int dnie_compose_and_send_apdu(sc_card_t *card, const u8 *path, size_t pa
 
 	if (file_out == NULL) {
 		apdu.cse = SC_APDU_CASE_4_SHORT;
-		apdu.le = 0;
+//		apdu.le = 0;
 	}
 	res = dnie_transmit_apdu(card, &apdu);
 	if ((res != SC_SUCCESS) || (file_out == NULL))
@@ -1280,7 +1279,6 @@ static int dnie_select_file(struct sc_card *card,
 			LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
 
 		sc_log(ctx, "select_file(PATH): requested:%s ", sc_dump_hex(in_path->value, in_path->len));
-
 
 		/* convert to SC_PATH_TYPE_FILE_ID */
 		res = sc_lock(card); /* lock to ensure path traversal */
@@ -1454,6 +1452,7 @@ static int dnie_set_security_env(struct sc_card *card,
 {
 	sc_apdu_t apdu;
 	u8 sbuf[SC_MAX_APDU_BUFFER_SIZE];	/* buffer to compose apdu data */
+	u8 rbuf[255];
 	u8 *p = sbuf;
 	int result = SC_SUCCESS;
 	if ((card == NULL) || (card->ctx == NULL) || (env == NULL))
@@ -1525,8 +1524,8 @@ static int dnie_set_security_env(struct sc_card *card,
 	}
 
 	/* create and format apdu */
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x22, 0x00, 0x00, 0, p - sbuf,
-					NULL, 0, sbuf, p - sbuf);
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x22, 0x00, 0x00, 255, p - sbuf,
+					rbuf, 255, sbuf, p - sbuf);
 
 	/* check and perform operation */
 	switch (env->operation) {
@@ -1554,7 +1553,7 @@ static int dnie_set_security_env(struct sc_card *card,
 
 	/* send composed apdu and parse result */
 	result = dnie_transmit_apdu(card, &apdu);
-	dnie_free_apdu_buffers(&apdu, NULL, 0);
+	dnie_free_apdu_buffers(&apdu, rbuf, 255);
 	LOG_TEST_RET(card->ctx, result, "Set Security Environment failed");
 	result = sc_check_sw(card, apdu.sw1, apdu.sw2);
 
@@ -2181,6 +2180,7 @@ static int dnie_pin_verify(struct sc_card *card,
 	sc_apdu_t apdu;
 
 	u8 pinbuffer[SC_MAX_APDU_BUFFER_SIZE];
+	u8 resp[255];
 	int pinlen = 0;
 	int padding = 0;
 
@@ -2200,13 +2200,13 @@ static int dnie_pin_verify(struct sc_card *card,
 	pinlen = res;
 
 	/* compose apdu */
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x20, 0x00, 0x00, 0, pinlen,
-					NULL, 0, pinbuffer, pinlen);
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x20, 0x00, 0x00, 255, pinlen,
+					resp, 255, pinbuffer, pinlen);
 
 	/* and send to card throught virtual channel */
 	res = dnie_transmit_apdu(card, &apdu);
 	if (res != SC_SUCCESS) {
-		dnie_free_apdu_buffers(&apdu, NULL, 0);
+		dnie_free_apdu_buffers(&apdu, resp, 255);
 		LOG_TEST_RET(card->ctx, res, "VERIFY APDU Transmit fail");
 	}
 
@@ -2214,14 +2214,14 @@ static int dnie_pin_verify(struct sc_card *card,
 	if (tries_left != NULL) {	/* returning tries_left count is requested */
 		if ((apdu.sw1 == 0x63) && ((apdu.sw2 & 0xF0) == 0xC0)) {
 			*tries_left = apdu.sw2 & 0x0F;
-			dnie_free_apdu_buffers(&apdu, NULL, 0);
+			dnie_free_apdu_buffers(&apdu, resp, 255);
 			LOG_FUNC_RETURN(card->ctx, SC_ERROR_PIN_CODE_INCORRECT);
 		}
 	}
 	res = dnie_check_sw(card, apdu.sw1, apdu.sw2);	/* not a pinerr: parse result */
 
 	/* the end: a bit of Mister Proper and return */
-	dnie_free_apdu_buffers(&apdu, NULL, 0);
+	dnie_free_apdu_buffers(&apdu, resp, 255);
 	data->apdu = NULL;
 	LOG_FUNC_RETURN(card->ctx, res);
 #else
