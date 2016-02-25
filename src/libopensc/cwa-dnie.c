@@ -733,14 +733,17 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 	memcpy(apdu, plain, sizeof(sc_apdu_t));
 
 	/* if SM is on, assure rx buffer exists and force get_response */
-
-	apdu->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
-	if (apdu->resp == NULL) {
-		free(apdu);
-		LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
+/*
+	if ((apdu->resplen > 255) && (apdu->resplen < 257)) {
+		exit(0);
+		apdu->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
+		if (apdu->resp == NULL) {
+			free(apdu);
+			LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
+		}
+		apdu->resplen = MAX_RESP_BUFFER_SIZE;
 	}
-	apdu->resplen = MAX_RESP_BUFFER_SIZE;
-
+*/
 	*sm_apdu = apdu;
 	LOG_FUNC_RETURN(ctx, rv);
 }
@@ -805,7 +808,7 @@ int dnie_transmit_apdu(sc_card_t * card, sc_apdu_t * apdu)
 	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
 	if ((provider->status.session.state == CWA_SM_ACTIVE) &&
 		(card->sm_ctx.sm_mode == SM_MODE_TRANSMIT)) {
-		res = dnie_wrap_apdu(card, apdu);
+		res = sc_transmit_apdu(card, apdu);
 		LOG_TEST_RET(ctx, res, "Error in dnie_wrap_apdu process");
 		res = cwa_decode_response(card, provider, apdu);
 		LOG_TEST_RET(ctx, res, "Error in cwa_decode_response process");

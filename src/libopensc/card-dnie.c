@@ -1001,7 +1001,7 @@ static u8 *dnie_uncompress(sc_card_t * card, u8 * from, size_t *len)
  */
 static int dnie_fill_cache(sc_card_t * card)
 {
-	u8 tmp[SC_MAX_APDU_BUFFER_SIZE];
+	u8 tmp[MAX_RESP_BUFFER_SIZE];
 	sc_apdu_t apdu;
 	size_t count = 0;
 	size_t len = 0;
@@ -1029,7 +1029,7 @@ static int dnie_fill_cache(sc_card_t * card)
 		apdu.p1 = 0xff & (len >> 8);
 		apdu.p2 = 0xff & len;
 		apdu.le = count;
-		apdu.resplen = count;
+		apdu.resplen = MAX_RESP_BUFFER_SIZE;
 		apdu.resp = tmp;
 		/* transmit apdu */
 		r = dnie_transmit_apdu(card, &apdu);
@@ -1381,19 +1381,19 @@ static int dnie_get_challenge(struct sc_card *card, u8 * rnd, size_t len)
 		sc_format_apdu(card, &apdu, SC_APDU_CASE_2_SHORT, 0x84, 0x00, 0x00);
 		apdu.le = BUFFER_SIZE;
 		apdu.resp = buf;
-		apdu.resplen = BUFFER_SIZE;	/* include SW's */
+		apdu.resplen = MAX_RESP_BUFFER_SIZE;	/* include SW's */
 		result = dnie_transmit_apdu(card, &apdu);
 		if (result != SC_SUCCESS) {
-			dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
+			dnie_free_apdu_buffers(&apdu, buf, MAX_RESP_BUFFER_SIZE);
 			LOG_TEST_RET(card->ctx, result, "APDU transmit failed");
 		}
 		if (apdu.resplen != BUFFER_SIZE) {
 			result = sc_check_sw(card, apdu.sw1, apdu.sw2);
-			dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
+			dnie_free_apdu_buffers(&apdu, buf, MAX_RESP_BUFFER_SIZE);
 			goto dnie_get_challenge_error;
 		}
 		memcpy(rnd, apdu.resp, n);
-		dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
+		dnie_free_apdu_buffers(&apdu, buf, MAX_RESP_BUFFER_SIZE);
 		len -= n;
 		rnd += n;
 	}
