@@ -733,6 +733,7 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 	memcpy(apdu, plain, sizeof(sc_apdu_t));
 
 	/* if SM is on, assure rx buffer exists and force get_response */
+
 	apdu->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
 	if (apdu->resp == NULL) {
 		free(apdu);
