@@ -53,6 +53,9 @@
 #ifdef __APPLE__
 #include <Carbon/Carbon.h>
 #endif
+
+#define MAX_RESP_BUFFER_SIZE 2048
+
 /* default titles */
 #define USER_CONSENT_TITLE "Confirm"
 
@@ -729,6 +732,87 @@ int dnie_match_card(struct sc_card *card)
 	LOG_FUNC_RETURN(card->ctx, result);
 }
 
+static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
+		struct sc_apdu *plain, struct sc_apdu **sm_apdu)
+{
+	struct sc_context *ctx = card->ctx;
+	int rv = SC_SUCCESS;
+
+	LOG_FUNC_CALLED(ctx);
+	if (!sm_apdu)
+		LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
+	if (!(*sm_apdu))
+		LOG_FUNC_RETURN(ctx, SC_SUCCESS);
+
+	if ((*sm_apdu) != plain) {
+		plain->resp = (*sm_apdu)->resp;
+		plain->resplen = (*sm_apdu)->resplen;
+		plain->sw1 = (*sm_apdu)->sw1;
+		plain->sw2 = (*sm_apdu)->sw2;
+
+		if (((*sm_apdu)->data) != plain->data)
+			free((unsigned char *) (*sm_apdu)->data);
+		free(*sm_apdu);
+	}
+	*sm_apdu = NULL;
+
+	LOG_FUNC_RETURN(ctx, rv);
+}
+
+static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
+		struct sc_apdu *plain, struct sc_apdu **sm_apdu)
+{
+	struct sc_context *ctx = card->ctx;
+	struct sc_apdu *apdu = NULL;
+	cwa_provider_t *provider = NULL;
+	int rv = SC_SUCCESS;
+
+	LOG_FUNC_CALLED(ctx);
+	if (!plain || !sm_apdu)
+		LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
+
+	provider = GET_DNIE_PRIV_DATA(card)->cwa_provider;
+
+	if (((plain->cla & 0x0C) == 0) && (plain->ins != 0xC0)) {
+		*sm_apdu = NULL;
+		//construct new SM apdu from original apdu
+		apdu = calloc(1, sizeof(struct sc_apdu));
+		if (!apdu)
+			return SC_ERROR_OUT_OF_MEMORY;
+
+		memcpy(apdu, plain, sizeof(sc_apdu_t));
+
+		/* SM is active, encode apdu */
+		apdu->resp = NULL;
+		apdu->resplen = 0;	/* let get_response() assign space */
+		rv = cwa_encode_apdu(card, provider, plain, apdu);
+
+		if (rv != SC_SUCCESS) {
+			dnie_sm_free_wrapped_apdu(card, NULL, &apdu);
+			goto err;
+		}
+
+		/* if SM is on, assure rx buffer exists and force get_response */
+		if (apdu->cse == SC_APDU_CASE_3_SHORT)
+			apdu->cse = SC_APDU_CASE_4_SHORT;
+		if (apdu->resplen == 0) {	/* no response buffer: create */
+			apdu->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
+			if (apdu->resp == NULL)
+				LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
+			apdu->resplen = MAX_RESP_BUFFER_SIZE;
+			apdu->le = card->max_recv_size;
+		}
+
+		*sm_apdu = apdu;
+	} else 
+		*sm_apdu = plain;
+
+	apdu = NULL;
+err:
+	free(apdu);
+	LOG_FUNC_RETURN(ctx, rv);
+}
+
 /**
  * OpenDNIe card structures initialization.
  *
@@ -759,8 +843,9 @@ static int dnie_init(struct sc_card *card)
 #ifdef ENABLE_SM
 	/** Secure messaging initialization section **/
 	memset(&(card->sm_ctx), 0, sizeof(sm_context_t));
-	card->sm_ctx.ops.get_sm_apdu = NULL;
-	card->sm_ctx.ops.free_sm_apdu = NULL;
+	card->sm_ctx.ops.get_sm_apdu = dnie_sm_get_wrapped_apdu;
+	card->sm_ctx.ops.free_sm_apdu = dnie_sm_free_wrapped_apdu;
+	card->sm_ctx.sm_mode = SM_MODE_NONE;
 #endif
 
 	init_flags(card);
@@ -1089,7 +1174,7 @@ static int dnie_compose_and_send_apdu(sc_card_t *card, const u8 *path, size_t pa
 		apdu.cse= SC_APDU_CASE_1;
 
 	if (file_out == NULL) {
-		apdu.cse = (apdu.lc == 0) ? SC_APDU_CASE_1 : SC_APDU_CASE_3_SHORT;
+		apdu.cse = SC_APDU_CASE_4_SHORT;
 		apdu.le = 0;
 	}
 	res = dnie_transmit_apdu(card, &apdu);
@@ -1269,10 +1354,12 @@ static int dnie_select_file(struct sc_card *card,
  * @param len requested challenge length
  * @return SC_SUCCESS if OK; else error code
  */
+#define BUFFER_SIZE 8
+
 static int dnie_get_challenge(struct sc_card *card, u8 * rnd, size_t len)
 {
 	sc_apdu_t apdu;
-	u8 buf[10];
+	u8 buf[BUFFER_SIZE];
 	int result = SC_SUCCESS;
 	if ((card == NULL) || (card->ctx == NULL))
 		return SC_ERROR_INVALID_ARGUMENTS;
@@ -1284,27 +1371,31 @@ static int dnie_get_challenge(struct sc_card *card, u8 * rnd, size_t len)
 		result = SC_ERROR_INVALID_ARGUMENTS;
 		goto dnie_get_challenge_error;
 	}
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_2_SHORT, 0x84, 0x00, 0x00, 8, 0,
-					buf, 8, NULL, 0);
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_2_SHORT, 0x84, 0x00, 0x00, BUFFER_SIZE, 0,
+					buf, BUFFER_SIZE, NULL, 0);
 
 	/* 
 	* As DNIe cannot handle other data length than 0x08 and 0x14, 
 	* perform consecutive reads of 8 bytes until retrieve requested length
 	*/
 	while (len > 0) {
-		size_t n = len > 8 ? 8 : len;
+		size_t n = len > BUFFER_SIZE ? BUFFER_SIZE : len;
+		sc_format_apdu(card, &apdu, SC_APDU_CASE_2_SHORT, 0x84, 0x00, 0x00);
+		apdu.le = BUFFER_SIZE;
+		apdu.resp = buf;
+		apdu.resplen = BUFFER_SIZE;	/* include SW's */
 		result = dnie_transmit_apdu(card, &apdu);
 		if (result != SC_SUCCESS) {
-			dnie_free_apdu_buffers(&apdu, buf, 8);
+			dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
 			LOG_TEST_RET(card->ctx, result, "APDU transmit failed");
 		}
-		if (apdu.resplen != 8) {
+		if (apdu.resplen != BUFFER_SIZE) {
 			result = sc_check_sw(card, apdu.sw1, apdu.sw2);
-			dnie_free_apdu_buffers(&apdu, buf, 8);
+			dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
 			goto dnie_get_challenge_error;
 		}
 		memcpy(rnd, apdu.resp, n);
-		dnie_free_apdu_buffers(&apdu, buf, 8);
+		dnie_free_apdu_buffers(&apdu, buf, BUFFER_SIZE);
 		len -= n;
 		rnd += n;
 	}
@@ -1434,7 +1525,7 @@ static int dnie_set_security_env(struct sc_card *card,
 	}
 
 	/* create and format apdu */
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_3_SHORT, 0x22, 0x00, 0x00, 0, p - sbuf,
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x22, 0x00, 0x00, 0, p - sbuf,
 					NULL, 0, sbuf, p - sbuf);
 
 	/* check and perform operation */
@@ -1666,7 +1757,7 @@ static int dnie_list_files(sc_card_t * card, u8 * buf, size_t buflen)
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_INVALID_ARGUMENTS);
 
 	/* compose select_file(ID) command */
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_3_SHORT, 0xA4, 0x00, 0x00, 0, 2,
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0xA4, 0x00, 0x00, 0, 2,
 					NULL, 0, data, 2);
 	/* iterate on every possible ids */
 	for (id1 = 0; id1 < 256; id1++) {
@@ -2109,7 +2200,7 @@ static int dnie_pin_verify(struct sc_card *card,
 	pinlen = res;
 
 	/* compose apdu */
-	dnie_format_apdu(card, &apdu, SC_APDU_CASE_3_SHORT, 0x20, 0x00, 0x00, 0x00, pinlen,
+	dnie_format_apdu(card, &apdu, SC_APDU_CASE_4_SHORT, 0x20, 0x00, 0x00, 0, pinlen,
 					NULL, 0, pinbuffer, pinlen);
 
 	/* and send to card throught virtual channel */
