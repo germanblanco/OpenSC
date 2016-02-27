@@ -1481,7 +1481,7 @@ int cwa_encode_apdu(sc_card_t * card,
 	}
 
 	/* set up data on destination apdu */
-	to->cse = SC_APDU_CASE_3_SHORT;
+	to->cse = SC_APDU_CASE_4_SHORT;
 	to->cla = from->cla | 0x0C;	/* mark apdu as encoded */
 	to->ins = from->ins;
 	to->p1 = from->p1;

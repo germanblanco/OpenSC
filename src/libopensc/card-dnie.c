@@ -783,24 +783,11 @@ static int dnie_sm_get_wrapped_apdu(struct sc_card *card,
 		memcpy(apdu, plain, sizeof(sc_apdu_t));
 
 		/* SM is active, encode apdu */
-		apdu->resp = NULL;
-		apdu->resplen = 0;	/* let get_response() assign space */
 		rv = cwa_encode_apdu(card, provider, plain, apdu);
 
 		if (rv != SC_SUCCESS) {
 			dnie_sm_free_wrapped_apdu(card, NULL, &apdu);
 			goto err;
-		}
-
-		/* if SM is on, assure rx buffer exists and force get_response */
-		if (apdu->cse == SC_APDU_CASE_3_SHORT)
-			apdu->cse = SC_APDU_CASE_4_SHORT;
-		if (apdu->resplen == 0) {	/* no response buffer: create */
-			apdu->resp = calloc(1, MAX_RESP_BUFFER_SIZE);
-			if (apdu->resp == NULL)
-				LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
-			apdu->resplen = MAX_RESP_BUFFER_SIZE;
-			apdu->le = card->max_recv_size;
 		}
 
 		*sm_apdu = apdu;
