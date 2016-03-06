@@ -59,7 +59,6 @@
 /* default titles */
 #define USER_CONSENT_TITLE "Confirm"
 
-extern cwa_provider_t *dnie_get_cwa_provider(sc_card_t * card);
 extern int dnie_read_file(
 	sc_card_t * card, 
 	const sc_path_t * path, 
@@ -745,12 +744,14 @@ static int dnie_sm_free_wrapped_apdu(struct sc_card *card,
 		LOG_FUNC_RETURN(ctx, SC_SUCCESS);
 
 	if ((*sm_apdu) != plain) {
-		plain->resp = (*sm_apdu)->resp;
-		plain->resplen = (*sm_apdu)->resplen;
-		plain->sw1 = (*sm_apdu)->sw1;
-		plain->sw2 = (*sm_apdu)->sw2;
+		if (plain != NULL) {
+			plain->resp = (*sm_apdu)->resp;
+			plain->resplen = (*sm_apdu)->resplen;
+			plain->sw1 = (*sm_apdu)->sw1;
+			plain->sw2 = (*sm_apdu)->sw2;
+		}
 
-		if (((*sm_apdu)->data) != plain->data)
+		if ((plain == NULL) || (((*sm_apdu)->data) != plain->data))
 			free((unsigned char *) (*sm_apdu)->data);
 		free(*sm_apdu);
 	}
@@ -2168,10 +2169,18 @@ static int dnie_pin_verify(struct sc_card *card,
 	u8 resp[MAX_RESP_BUFFER_SIZE];
 	int pinlen = 0;
 	int padding = 0;
+	cwa_provider_t *prov, *backup_prov;
 
 	LOG_FUNC_CALLED(card->ctx);
 	/* ensure that secure channel is established from reset */
-	res = cwa_create_secure_channel(card, GET_DNIE_PRIV_DATA(card)->cwa_provider, CWA_SM_COLD);
+
+	/* DNIE 3.0 */
+	if (card->atr.value[15] >= 0x04)
+		prov = dnie_get_cwa_provider_pin_channel(card);
+	else
+		prov = GET_DNIE_PRIV_DATA(card)->cwa_provider;
+
+	res = cwa_create_secure_channel(card, prov, CWA_SM_COLD);
 	LOG_TEST_RET(card->ctx, res, "Establish SM failed");
 
 	data->apdu = &apdu;	/* prepare apdu struct */
@@ -2189,10 +2198,21 @@ static int dnie_pin_verify(struct sc_card *card,
 					resp, MAX_RESP_BUFFER_SIZE, pinbuffer, pinlen);
 
 	/* and send to card throught virtual channel */
+	backup_prov = GET_DNIE_PRIV_DATA(card)->cwa_provider;
+	GET_DNIE_PRIV_DATA(card)->cwa_provider = prov;
 	res = dnie_transmit_apdu(card, &apdu);
+	GET_DNIE_PRIV_DATA(card)->cwa_provider = backup_prov;
+
+	/* DNIE 3.0 */
+	if (card->atr.value[15] >= 0x04)
+		free(prov);
 	if (res != SC_SUCCESS) {
 		dnie_free_apdu_buffers(&apdu, resp, MAX_RESP_BUFFER_SIZE);
 		LOG_TEST_RET(card->ctx, res, "VERIFY APDU Transmit fail");
+	}
+	if (card->atr.value[15] >= 0x04) {
+		res = cwa_create_secure_channel(card, GET_DNIE_PRIV_DATA(card)->cwa_provider, CWA_SM_COLD);
+		LOG_TEST_RET(card->ctx, res, "Establish SM failed");
 	}
 
 	/* check response and if requested setup tries_left */

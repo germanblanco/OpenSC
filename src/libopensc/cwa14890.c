@@ -1084,9 +1084,11 @@ int cwa_create_secure_channel(sc_card_t * card,
 
 	/* OK: lets start process */
 
-	/* reset card (warm reset, do not unpower card) */
-	sc_log(ctx, "Resseting card");
-	sc_reset(card, 0);
+	/* if (provider == GET_DNIE_PRIV_DATA(card)->cwa_provider) */ {
+		/* reset card (warm reset, do not unpower card) */
+		sc_log(ctx, "Resseting card");
+		sc_reset(card, 0);
+	}
 
 	/* mark SM status as in progress */
 	provider->status.session.state = CWA_SM_INPROGRESS;
@@ -1429,6 +1431,7 @@ int cwa_encode_apdu(sc_card_t * card,
 	cwa_sm_session_t *sm_session = NULL;
 	u8 *msgbuf = NULL;	/* to encrypt apdu data */
 	u8 *cryptbuf = NULL;
+	unsigned int len_MAC_TLV = 4;
 
 	/* mandatory check */
 	if (!card || !card->ctx || !provider)
@@ -1567,8 +1570,13 @@ int cwa_encode_apdu(sc_card_t * card,
 	DES_ecb2_encrypt((const_DES_cblock *) macbuf, (DES_cblock *) macbuf,
 			 &k1, &k2, DES_ENCRYPT);
 
+	if (provider->cwa_card_version >= DNIE_30_version)
+		len_MAC_TLV = 8;
+	else
+		len_MAC_TLV = 4;
+
 	/* compose and add computed MAC TLV to result buffer */
-	res = cwa_compose_tlv(card, 0x8E, 4, macbuf, &apdubuf, &apdulen);
+	res = cwa_compose_tlv(card, 0x8E, len_MAC_TLV, macbuf, &apdubuf, &apdulen);
 	if (res != SC_SUCCESS) {
 		msg = "Encode APDU compose_tlv(0x87) failed";
 		goto encode_end;
@@ -1631,6 +1639,7 @@ int cwa_decode_response(sc_card_t * card,
 	char *msg = NULL;	/* to store error messages */
 	sc_context_t *ctx = NULL;
 	cwa_sm_session_t *sm_session = NULL;
+	unsigned int len_MAC_TLV = 4;
 
 	/* mandatory check */
 	if (!card || !card->ctx || !provider)
@@ -1700,7 +1709,13 @@ int cwa_decode_response(sc_card_t * card,
 		res = SC_ERROR_INVALID_DATA;
 		goto response_decode_end;
 	}
-	if (m_tlv->len != 4) {
+
+	if (provider->cwa_card_version >= DNIE_30_version)
+		len_MAC_TLV = 8;
+	else
+		len_MAC_TLV = 4;
+
+	if (m_tlv->len != len_MAC_TLV) {
 		msg = "Invalid MAC TAG Length";
 		res = SC_ERROR_INVALID_DATA;
 		goto response_decode_end;
@@ -1989,6 +2004,8 @@ static cwa_provider_t default_cwa_provider = {
 	   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	  }
 	 },
+
+	0, /* card version */
 
     /************ operations related with secure channel creation *********/
 

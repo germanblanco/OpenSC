@@ -85,6 +85,7 @@ typedef struct cwa_provider_st {
     /************ data related with SM operations *************************/
 
 	cwa_sm_status_t status; /** sm status for this provider */
+	int cwa_card_version;
 
     /************ operations related with secure channel creation *********/
 
